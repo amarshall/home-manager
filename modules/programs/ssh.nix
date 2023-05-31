@@ -15,6 +15,12 @@ let
 
   unwords = builtins.concatStringsSep " ";
 
+  mkSetEnvStr = envStr: unwords
+    (mapAttrsToList
+      (name: value: ''${name}="${escape [ "\"" "\\" ] (toString value)}"'')
+      envStr
+    );
+
   bindOptions = {
     address = mkOption {
       type = types.str;
@@ -72,7 +78,7 @@ let
           </citerefentry>
           for <literal>Host</literal> block details.
           This option is ignored if
-          <option>ssh.matchBlocks.*.matcht</option>
+          <option>ssh.matchBlocks.*.match</option>
           if defined.
         '';
       };
@@ -186,6 +192,14 @@ let
         description = ''
           Environment variables to send from the local host to the
           server.
+        '';
+      };
+
+      setEnv = mkOption {
+        type = with types; attrsOf (oneOf [ str path int float ]);
+        default = {};
+        description = ''
+          Environment variables and their value to send to the server.
         '';
       };
 
@@ -322,6 +336,7 @@ let
     ++ optional (cf.hostname != null)        "  HostName ${cf.hostname}"
     ++ optional (cf.addressFamily != null)   "  AddressFamily ${cf.addressFamily}"
     ++ optional (cf.sendEnv != [])           "  SendEnv ${unwords cf.sendEnv}"
+    ++ optional (cf.setEnv != {})            "  SetEnv ${mkSetEnvStr cf.setEnv}"
     ++ optional (cf.serverAliveInterval != 0)
       "  ServerAliveInterval ${toString cf.serverAliveInterval}"
     ++ optional (cf.serverAliveCountMax != 3)
@@ -345,6 +360,12 @@ in
 
   options.programs.ssh = {
     enable = mkEnableOption "SSH client configuration";
+
+    package = mkPackageOption pkgs "openssh" {
+      nullable = true;
+      default = null;
+      extraDescription = "By default, the client provided by your system is used.";
+    };
 
     forwardAgent = mkOption {
       default = false;
@@ -509,6 +530,8 @@ in
         message = "Forwarded paths cannot have ports.";
       }
     ];
+
+    home.packages = optional (cfg.package != null) cfg.package;
 
     home.file.".ssh/config".text =
       let
