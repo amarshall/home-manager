@@ -333,6 +333,12 @@ in
       description = "Resulting ${appName} package.";
     };
 
+    addToHomePackages = mkOption {
+      default = true;
+      type = types.bool;
+      description = "Whether to add the `finalPackage` to `home.packages`";
+    };
+
     policies = lib.optionalAttrs (wrappedPackageName != null) (mkOption {
       inherit visible;
       type = types.attrsOf jsonFormat.type;
@@ -929,7 +935,7 @@ in
           // cfg.policies;
         }
       );
-      home.packages = lib.optional (cfg.finalPackage != null) cfg.finalPackage;
+      home.packages = lib.optional (cfg.addToHomePackages && cfg.finalPackage != null) cfg.finalPackage;
 
       home.file = mkMerge (
         [
